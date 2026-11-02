@@ -1,0 +1,46 @@
+{
+  "host": "127.0.0.1",
+  "port": 4000,
+  "default_provider": "deepseek",
+  "providers": {
+    "deepseek": {
+      "name": "deepseek",
+      "base_url": "https://api.deepseek.com/anthropic",
+      "api_key": "REPLACE_WITH_DEEPSEEK_API_KEY"
+    },
+    "openrouter": {
+      "name": "openrouter",
+      "base_url": "https://openrouter.ai/api",
+      "api_key": "REPLACE_WITH_OPENROUTER_API_KEY"
+    }
+  },
+  "rules": [
+    {
+      "match": "^deepseek-[^/]+$",
+      "provider": "deepseek"
+    },
+    {
+      "match": "^openrouter/",
+      "provider": "openrouter",
+      "strip": "openrouter/"
+    },
+    {
+      "match": "/",
+      "provider": "openrouter"
+    }
+  ],
+  "aliases": {
+    "ds": { "provider": "deepseek", "model": "deepseek-v4-flash" },
+    "ds-flash": { "provider": "deepseek", "model": "deepseek-v4-flash" },
+    "ds-pro": { "provider": "deepseek", "model": "deepseek-v4-pro" },
+    "opus": { "provider": "deepseek", "model": "deepseek-v4-pro" },
+    "sonnet": { "provider": "deepseek", "model": "deepseek-v4-flash" },
+    "haiku": { "provider": "deepseek", "model": "deepseek-v4-flash" },
+    "fable": { "provider": "deepseek", "model": "deepseek-v4-flash" },
+    "or": { "provider": "openrouter", "model": "deepseek/deepseek-chat" },
+    "gemma": { "provider": "openrouter", "model": "google/gemma-4-26b-a4b-it:free" },
+    "nemotron": { "provider": "openrouter", "model": "nvidia/nemotron-3-ultra-550b-a55b:free" },
+    "lightning": { "provider": "openrouter", "model": "nvidia/nemotron-3.5-lightning:free" },
+    "gpt-oss": { "provider": "openrouter", "model": "openai/gpt-oss-120b" }
+  }
+}

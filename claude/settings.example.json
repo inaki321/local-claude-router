@@ -1,0 +1,60 @@
+{
+  "model": "deepseek-v4-flash",
+  "skipDangerousModePermissionPrompt": true,
+  "theme": "dark",
+  "env": {
+    "ANTHROPIC_BASE_URL": "http://127.0.0.1:4000",
+    "ANTHROPIC_AUTH_TOKEN": "claude-router-local",
+    "ANTHROPIC_DEFAULT_OPUS_MODEL": "deepseek-v4-pro",
+    "ANTHROPIC_DEFAULT_SONNET_MODEL": "deepseek-v4-flash",
+    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "deepseek-v4-flash",
+    "ANTHROPIC_DEFAULT_FABLE_MODEL": "deepseek-v4-flash"
+  },
+  "modelPicker": {
+    "replaceBuiltInOptions": true,
+    "options": [
+      {
+        "model": "deepseek-v4-flash",
+        "label": "DeepSeek V4 Flash",
+        "description": "DeepSeek direct - fast and cheap",
+        "behavesAs": "claude-haiku-5-5"
+      },
+      {
+        "model": "deepseek-v4-pro",
+        "label": "DeepSeek V4 Pro",
+        "description": "DeepSeek direct - stronger",
+        "behavesAs": "claude-sonnet-5-5"
+      },
+      {
+        "model": "openai/gpt-oss-120b",
+        "label": "GPT-OSS 120B",
+        "description": "OpenRouter"
+      },
+      {
+        "model": "google/gemma-4-26b-a4b-it:free",
+        "label": "Gemma 4 26B (free)",
+        "description": "OpenRouter free tier - daily limit"
+      },
+      {
+        "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+        "label": "Nemotron 3 Ultra (free)",
+        "description": "OpenRouter free tier - daily limit"
+      },
+      {
+        "model": "nvidia/nemotron-3.5-lightning:free",
+        "label": "Nemotron 3.5 Lightning (free)",
+        "description": "OpenRouter free tier - daily limit"
+      }
+    ]
+  },
+  "permissions": {
+    "deny": [
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(kubectl edit:*)",
+      "Bash(k edit:*)",
+      "Bash(kubectl rollout restart:*)",
+      "Bash(k rollout restart:*)"
+    ]
+  }
+}

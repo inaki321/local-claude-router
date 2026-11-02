@@ -1,0 +1,11 @@
+# Live secrets - never commit
+providers.json
+.env
+.env.*
+
+# Local backups created by install.sh / apply-settings.mjs
+*.bak
+*.bak-*
+
+# Machine-local settings (the repo keeps a sanitized example instead)
+settings.local.json

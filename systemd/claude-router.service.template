@@ -1,0 +1,17 @@
+[Unit]
+Description=Claude Code local provider router (DeepSeek + OpenRouter)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+Environment=PATH=__NODE_DIR__:/usr/local/bin:/usr/bin:/bin
+Environment=CLAUDE_ROUTER_CONFIG=__HOME__/.claude/router/providers.json
+WorkingDirectory=__HOME__/.claude/router
+ExecStart=__NODE__ __HOME__/.claude/router/router.mjs
+Restart=always
+RestartSec=2
+NoNewPrivileges=true
+
+[Install]
+WantedBy=default.target
