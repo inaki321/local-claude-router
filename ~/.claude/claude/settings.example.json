@@ -47,6 +47,7 @@
       }
     ]
   },
+  /*(remove)personal settings to avoid touching k8s prod*/
   "permissions": {
     "deny": [
       "Bash(git commit:*)",

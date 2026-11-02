@@ -1,0 +1,1 @@
+~/.claude folder , for global settings, skills etc 
