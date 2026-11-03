@@ -2,6 +2,9 @@
 providers.json
 .env
 .env.*
+~/.config/litellm/env
+~/.config/litellm/config.yaml
+~/.config/litellm/backup-*
 
 # Local backups created by install.sh / apply-settings.mjs
 *.bak

@@ -7,6 +7,35 @@ This file is the record of every change made to the live system so the setup
 can be audited or rolled back. The repo is the canonical source; the live
 copies are deployed by `install.sh`.
 
+## Status 2026-11-03: LiteLLM applied, router removed
+
+Applied on this machine:
+
+- Installed LiteLLM 1.106.6 via `pipx install 'litellm[proxy]'`.
+- Created `~/.config/litellm/config.yaml` (DeepSeek + OpenRouter; Lithos
+  commented out until a key and model id exist) and `~/.config/litellm/env`
+  (`0600`, existing DeepSeek/OpenRouter keys).
+- Created and enabled `~/.config/systemd/user/claude-litellm.service`. It
+  listens on `127.0.0.1:4000` and starts at login (linger enabled).
+- `~/.claude/settings.json` needed no edit: `ANTHROPIC_BASE_URL` was already
+  `http://127.0.0.1:4000`, and `ANTHROPIC_AUTH_TOKEN` (`claude-router-local`)
+  was reused as `LITELLM_MASTER_KEY`.
+- Disabled and deleted `claude-router.service`; removed `~/.claude/router/`.
+- Backup of the old router, unit and settings:
+  `~/.config/litellm/backup-20261103-174950/` (0700/0600).
+
+Verified end-to-end: `deepseek-v4-flash` and `openai/gpt-oss-120b` both answer
+through `:4000`, including from a nested `claude` session.
+
+Lithos remains disabled: no key/model id yet. To enable it, uncomment the
+`model_list` entry in `~/.config/litellm/config.yaml`, add `LITHOSAI_API_KEY`
+to the env file, and `systemctl --user restart claude-litellm`.
+
+Rollback: restore the backup, reinstall the old unit, `systemctl --user enable
+--now claude-router`, and `systemctl --user disable --now claude-litellm`.
+
+Everything below is the historical record of the 2026-11-02 router setup.
+
 ## Created
 
 | Path | Notes |

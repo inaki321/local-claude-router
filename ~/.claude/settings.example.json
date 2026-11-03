@@ -4,7 +4,7 @@
   "theme": "dark",
   "env": {
     "ANTHROPIC_BASE_URL": "http://127.0.0.1:4000",
-    "ANTHROPIC_AUTH_TOKEN": "claude-router-local",
+    "ANTHROPIC_AUTH_TOKEN": "REPLACE_WITH_LITELLM_MASTER_KEY",
     "ANTHROPIC_DEFAULT_OPUS_MODEL": "deepseek-v4-pro",
     "ANTHROPIC_DEFAULT_SONNET_MODEL": "deepseek-v4-flash",
     "ANTHROPIC_DEFAULT_HAIKU_MODEL": "deepseek-v4-flash",
@@ -31,6 +31,11 @@
         "description": "OpenRouter"
       },
       {
+        "model": "lithos-kimi-k3",
+        "label": "Lithos Kimi K3",
+        "description": "LithosAI via LiteLLM"
+      },
+      {
         "model": "google/gemma-4-26b-a4b-it:free",
         "label": "Gemma 4 26B (free)",
         "description": "OpenRouter free tier - daily limit"
@@ -47,7 +52,6 @@
       }
     ]
   },
-  /*(remove)personal settings to avoid touching k8s prod*/
   "permissions": {
     "deny": [
       "Bash(git commit:*)",

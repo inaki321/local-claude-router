@@ -1,155 +1,113 @@
 # localrouter
 
-A tiny local Anthropic-compatible gateway that lets one `claude` process use
-**DeepSeek direct** and **OpenRouter** models, switching with `/model`.
+One local Anthropic-compatible endpoint for Claude Code, backed by
+[LiteLLM](https://docs.litellm.ai). Provider keys live in LiteLLM; Claude Code
+only knows the local endpoint and a model name.
 
 ```text
-claude  ->  127.0.0.1:4000  ->  deepseek-*        -> api.deepseek.com/anthropic
-                            ->  vendor/model      -> openrouter.ai/api
-                            ->  provider:model    -> explicit provider
+claude -> 127.0.0.1:4000 (LiteLLM) --+-> DeepSeek    api.deepseek.com/anthropic
+                                     +-> OpenRouter  openrouter.ai
+                                     +-> LithosAI    api.lithosai.cloud/v1 (translated)
 ```
 
-Claude Code has one endpoint and one credential per process. The router gives
-it a single local endpoint; each request's `model` field decides the upstream
-provider and injects that provider's API key. Requests are forwarded untouched
-in Anthropic Messages format — no API translation.
-
-## Repo layout
+## Parts
 
 | Path | Purpose |
 | --- | --- |
-| `router/router.mjs` | The router. Node 18+, no dependencies. |
-| `router/setup-config.mjs` | Generates `providers.json` from env vars or existing keys. |
-| `providers.example.json` | Config shape; placeholders only, safe to commit. |
-| `claude/settings.example.json` | Canonical `~/.claude/settings.json` (no secrets). |
-| `claude/settings.local.example.json` | Sanitized example of the local allow rules. |
-| `scripts/apply-settings.mjs` | Merges the canonical settings into `~/.claude/settings.json` with a backup. |
-| `systemd/claude-router.service.template` | Unit template; paths filled in by `install.sh`. |
-| `install.sh` | Deploys the router, config, and service. |
-| `MODIFICATIONS.md` | Exactly what was changed on this machine, with rollback notes. |
+| `install.sh` | Writes config, env and systemd unit. Never edits `~/.claude`. |
+| `~/.config/litellm/config.yaml.example` | Which `model_name` maps to which provider. |
+| `~/.config/litellm/env.example` | Provider keys and the LiteLLM master key. |
+| `~/.config/litellm/README.md` | Gateway details, smoke tests, rollback. |
+| `systemd/claude-litellm.service.template` | Runs LiteLLM at login. |
+| `~/.claude/settings.example.json` | Target Claude settings: endpoint, token, picker. |
+| `MODIFICATIONS.md` | Live-machine change log. |
 
-## Install / update
-
-```bash
-cd ~/repos/personal/localrouter
-./install.sh                 # router + service only
-./install.sh --settings      # also merge the canonical Claude settings
-./install.sh --dry-run       # show what would happen
-```
-
-First install on a machine without `~/.claude/router/providers.json`:
-
-```bash
-DEEPSEEK_API_KEY=... OPENROUTER_API_KEY=... ./install.sh
-```
-
-or copy `providers.example.json` to `~/.claude/router/providers.json` and fill
-in the keys. The live `providers.json` is `0600` and gitignored.
-
-After pulling changes, rerun `./install.sh`; it restarts the service.
-
-## Daily use
+After install, the live files are outside the repo and outside `~/.claude`:
 
 ```text
-claude                          # starts on deepseek-v4-flash
-/model                          # opens the labeled picker
-/model deepseek-v4-pro
-/model deepseek-v4-flash
-/model openai/gpt-oss-120b
-/model google/gemma-4-26b-a4b-it:free
-/model deepseek:deepseek-v4-pro        # explicit provider:model
-/model openrouter:openai/gpt-oss-120b
+~/.config/litellm/config.yaml   0644, no secrets
+~/.config/litellm/env           0600, keys
+~/.config/systemd/user/claude-litellm.service
 ```
 
-Shortcuts: `ds`, `ds-flash`, `ds-pro`, `or`, `gemma`, `nemotron`, `lightning`,
-`gpt-oss`, `opus` (-> `deepseek-v4-pro`), `sonnet`/`haiku`/`fable`
-(-> `deepseek-v4-flash`).
+## Flow
 
-`/model <name>` + Enter saves the choice as the new default. In the picker,
-`s` switches for the current session only.
+1. Claude Code sends `POST /v1/messages` to `127.0.0.1:4000` with a `model` string.
+2. LiteLLM matches it against `model_list[].model_name` and picks that provider's key.
+3. The request is forwarded in the provider's native format and streamed back.
+
+## Install
+
+```bash
+pipx install 'litellm[proxy]'
+
+./install.sh --dry-run
+./install.sh                      # creates files, stops on REPLACE_WITH
+$EDITOR ~/.config/litellm/env
+$EDITOR ~/.config/litellm/config.yaml
+./install.sh                      # enables and starts the service
+```
+
+Then in `~/.claude/settings.json`:
+
+```json
+"ANTHROPIC_BASE_URL": "http://127.0.0.1:4000",
+"ANTHROPIC_AUTH_TOKEN": "<LITELLM_MASTER_KEY>"
+```
+
+After the smoke tests, retire the old router:
+
+```bash
+systemctl --user disable --now claude-router
+```
+
+## Models
+
+The picker is `modelPicker` in `~/.claude/settings.json`. LiteLLM's model list
+is separate; any known `model_name` can be typed directly.
+
+```text
+/model                          # picker
+/model deepseek-v4-pro
+/model lithos-kimi-k3           # any model_name in config.yaml
+```
+
+Shortcuts (`ds`, `kimi`, `gemma`, ...) come from `model_group_alias` in
+`~/.config/litellm/config.yaml`. Family aliases (`opus`, `sonnet`, `haiku`) come from
+`ANTHROPIC_DEFAULT_*_MODEL` in settings.
+
+Add a model in `~/.config/litellm/config.yaml`:
+
+```yaml
+- model_name: glm-5-3
+  litellm_params:
+    model: openai/glm-5.3
+    api_base: https://api.lithosai.cloud/v1
+    api_key: os.environ/LITHOSAI_API_KEY
+```
+
+```bash
+systemctl --user restart claude-litellm
+```
+
+Optional: add `{"model":"glm-5-3","label":"GLM 5.3","description":"LithosAI"}`
+to `modelPicker.options` to show it in the picker.
 
 ## Service
 
 ```bash
-systemctl --user status claude-router
-systemctl --user restart claude-router
-systemctl --user stop claude-router
-journalctl --user -u claude-router -f
-curl -s http://127.0.0.1:4000/health
+systemctl --user status claude-litellm
+systemctl --user restart claude-litellm
+journalctl --user -u claude-litellm -f
+curl -s http://127.0.0.1:4000/health/liveliness
 ```
 
-The unit is `~/.config/systemd/user/claude-router.service`; it is enabled at
-login and restarts automatically. Linger is enabled where permitted. If you
-switch Node versions with nvm, rerun `./install.sh` so the unit points at the
-new `node` binary.
+## Notes
 
-## Keys and models
-
-Edit `~/.claude/router/providers.json` directly, or regenerate:
-
-```bash
-DEEPSEEK_API_KEY=... OPENROUTER_API_KEY=... node ~/.claude/router/setup-config.mjs
-systemctl --user restart claude-router
-```
-
-Add a provider:
-
-```json
-{
-  "providers": {
-    "moonshot": {
-      "name": "moonshot",
-      "base_url": "https://api.moonshot.ai/anthropic",
-      "api_key": "..."
-    }
-  },
-  "rules": [
-    { "match": "^kimi-", "provider": "moonshot" }
-  ]
-}
-```
-
-Rules are evaluated in order; first match wins. `prefix` prepends to the
-upstream model id, `strip` removes a prefix, and `aliases` maps a short name to
-`{provider, model}`. Restart the service after editing.
-
-## What was changed outside the repo
-
-See [MODIFICATIONS.md](MODIFICATIONS.md). In short: `~/.claude/settings.json`
-was pointed at the router; `modelAliases` was removed from
-`settings.local.json`; `~/.claude/remote-settings.json` was deleted; the
-invalid `ANTHROPIC_API_KEY` export in `~/.bashrc` was commented out; and the
-systemd user service was created and enabled.
-
-## Security
-
-- `providers.json` holds real keys. It is mode `0600` and gitignored.
-- Never commit a filled `providers.json`; commit `providers.example.json`.
-- Keys that have appeared in a chat or shared transcript should be rotated.
-- The router listens on `127.0.0.1` only.
-
-## Troubleshooting
-
-- **429 `free-models-per-day`** — OpenRouter free-tier daily quota. Paid models
-  still work; adding $10 credits unlocks 1000 free requests/day.
-- **400 `Mid-conversation reasoning effort ...`** — an OpenRouter model that
-  rejects Anthropic effort parameters. OpenRouter picker rows must not have
-  `behavesAs`; only the DeepSeek rows use it.
-- **`[claude-code:unrecognized_model]`** — cosmetic diagnostic for custom IDs
-  without a `behavesAs` entry. Requests still work.
-- **`claude` can't connect** — the service is down:
-  `systemctl --user start claude-router`.
-- **Anthropic direct** — not configured. The old key in `~/.bashrc` was
-  invalid and is commented out.
-
-## Uninstall
-
-```bash
-systemctl --user disable --now claude-router
-rm -f ~/.config/systemd/user/claude-router.service
-systemctl --user daemon-reload
-rm -rf ~/.claude/router
-```
-
-Then remove the `env` block and `modelPicker` from `~/.claude/settings.json`
-(or restore a `settings.json.bak-*` backup).
+- **What runs:** LiteLLM is a pipx-installed Python proxy, not a container. Binary at `~/.local/bin/litellm`, venv at `~/.local/share/pipx/venvs/litellm`; systemd runs it. It holds no weights and no database; `config.yaml` and `env` are the only state.
+- **Auth:** `ANTHROPIC_AUTH_TOKEN` must equal `LITELLM_MASTER_KEY`; a 401 means they differ.
+- **Keys:** only in `~/.config/litellm/env` (`0600`); the gateway binds loopback only.
+- **Parameters:** `drop_params: true` drops Anthropic-only fields for OpenAI backends.
+- **Paths:** `openai/` models need the `/v1` suffix in `api_base`; drop it on 404s.
+- **Port:** if `:4000` is busy, the old `claude-router` is still running.
+- **Rollback:** the router is in git history (`git log --all -- '~/.claude/router/router.mjs'`).

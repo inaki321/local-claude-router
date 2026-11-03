@@ -1,0 +1,17 @@
+[Unit]
+Description=LiteLLM gateway (local Anthropic-compatible endpoint for Claude Code)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+Environment=PATH=__LITELLM_DIR__:/usr/local/bin:/usr/bin:/bin
+EnvironmentFile=__HOME__/.config/litellm/env
+WorkingDirectory=__HOME__/.config/litellm
+ExecStart=__LITELLM_BIN__ --config __HOME__/.config/litellm/config.yaml --host 127.0.0.1 --port __LITELLM_PORT__
+Restart=on-failure
+RestartSec=2
+NoNewPrivileges=true
+
+[Install]
+WantedBy=default.target

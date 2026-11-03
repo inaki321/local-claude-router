@@ -1,0 +1,86 @@
+# LiteLLM gateway - the single local Anthropic-compatible endpoint.
+#
+#   claude -> this proxy :4000 --+-> api.deepseek.com/anthropic   (passthrough)
+#                                +-> openrouter                   (native provider)
+#                                +-> api.lithosai.cloud/v1        (translated)
+#
+# model_list names intentionally match the strings already used in
+# ~/.claude/settings.json, so /model and the modelPicker are unchanged.
+#
+# Deploy with: ./install.sh
+# Verify before pointing Claude Code at it: see litellm/README.md.
+
+model_list:
+  # --- DeepSeek direct (Anthropic-native endpoint, kept as passthrough) ---
+  - model_name: deepseek-v4-flash
+    litellm_params:
+      model: anthropic/deepseek-v4-flash
+      api_base: https://api.deepseek.com/anthropic
+      api_key: os.environ/DEEPSEEK_API_KEY
+
+  - model_name: deepseek-v4-pro
+    litellm_params:
+      model: anthropic/deepseek-v4-pro
+      api_base: https://api.deepseek.com/anthropic
+      api_key: os.environ/DEEPSEEK_API_KEY
+
+  # --- OpenRouter (LiteLLM's native provider; handles :free ids) ---
+  - model_name: openai/gpt-oss-120b
+    litellm_params:
+      model: openrouter/openai/gpt-oss-120b
+      api_key: os.environ/OPENROUTER_API_KEY
+
+  - model_name: google/gemma-4-26b-a4b-it:free
+    litellm_params:
+      model: openrouter/google/gemma-4-26b-a4b-it:free
+      api_key: os.environ/OPENROUTER_API_KEY
+
+  - model_name: nvidia/nemotron-3-ultra-550b-a55b:free
+    litellm_params:
+      model: openrouter/nvidia/nemotron-3-ultra-550b-a55b:free
+      api_key: os.environ/OPENROUTER_API_KEY
+
+  - model_name: nvidia/nemotron-3.5-lightning:free
+    litellm_params:
+      model: openrouter/nvidia/nemotron-3.5-lightning:free
+      api_key: os.environ/OPENROUTER_API_KEY
+
+  # Target for the "or" shortcut.
+  - model_name: deepseek/deepseek-chat
+    litellm_params:
+      model: openrouter/deepseek/deepseek-chat
+      api_key: os.environ/OPENROUTER_API_KEY
+
+  # --- LithosAI (OpenAI-only, translated) ---
+  - model_name: lithos-kimi-k3
+    litellm_params:
+      # Replace with a model id from:
+      #   curl https://api.lithosai.cloud/v1/models \
+      #     -H "Authorization: Bearer $LITHOSAI_API_KEY"
+      model: openai/REPLACE_WITH_LITHOS_MODEL_ID
+      api_base: https://api.lithosai.cloud/v1
+      api_key: os.environ/LITHOSAI_API_KEY
+
+router_settings:
+  # Equivalent of the old providers.json "aliases". Targets must be existing
+  # model_name values. hidden: true keeps them out of /v1/models.
+  model_group_alias:
+    ds:       { model: deepseek-v4-flash, hidden: true }
+    ds-flash: { model: deepseek-v4-flash, hidden: true }
+    ds-pro:   { model: deepseek-v4-pro, hidden: true }
+    or:       { model: deepseek/deepseek-chat, hidden: true }
+    gemma:    { model: google/gemma-4-26b-a4b-it:free, hidden: true }
+    nemotron: { model: nvidia/nemotron-3-ultra-550b-a55b:free, hidden: true }
+    lightning: { model: nvidia/nemotron-3.5-lightning:free, hidden: true }
+    gpt-oss:  { model: openai/gpt-oss-120b, hidden: true }
+    kimi:     { model: lithos-kimi-k3, hidden: true }
+
+litellm_settings:
+  # Claude Code sends Anthropic-specific parameters (thinking, effort, ...).
+  # OpenAI-only backends reject them; drop rather than 400.
+  drop_params: true
+
+general_settings:
+  # Claude Code authenticates with ANTHROPIC_AUTH_TOKEN; LiteLLM accepts it as
+  # Authorization: Bearer. Set the same value in ~/.claude/settings.json.
+  master_key: os.environ/LITELLM_MASTER_KEY
