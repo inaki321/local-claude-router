@@ -1,0 +1,18 @@
+# Optional: the default workflow is a manual `ollama serve` (see OLLAMA.md).
+# Install/enable only if you want Ollama started at login.
+[Unit]
+Description=Ollama (local models for Claude Code)
+After=network-online.target
+
+[Service]
+# Flash attention + a quantized KV cache are what make an 80k window fit on
+# the 8 GiB RTX 4060. Without these Ollama defaults to a 4096-token context.
+Environment=OLLAMA_FLASH_ATTENTION=1
+Environment=OLLAMA_KV_CACHE_TYPE=q4_0
+Environment=OLLAMA_CONTEXT_LENGTH=81920
+ExecStart=/usr/local/bin/ollama serve
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=default.target

@@ -26,13 +26,18 @@
         "behavesAs": "claude-sonnet-5-5"
       },
       {
+        "model": "qwen3-4b-instruct-2507",
+        "label": "Qwen3 4B (local)",
+        "description": "Ollama local - 80k context"
+      },
+      {
         "model": "openai/gpt-oss-120b",
         "label": "GPT-OSS 120B",
         "description": "OpenRouter"
       },
       {
-        "model": "lithos-kimi-k3",
-        "label": "Lithos Kimi K3",
+        "model": "deepseek-v4-flash-lith",
+        "label": "DeepSeek V4 Flash (Lithos)",
         "description": "LithosAI via LiteLLM"
       },
       {

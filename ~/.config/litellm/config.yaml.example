@@ -51,15 +51,50 @@ model_list:
       model: openrouter/deepseek/deepseek-chat
       api_key: os.environ/OPENROUTER_API_KEY
 
-  # --- LithosAI (OpenAI-only, translated) ---
-  - model_name: lithos-kimi-k3
+  # --- LithosAI (OpenAI-compatible, translated) ---
+  # Reasoning model: it returns reasoning_content before the answer, so give
+  # it a real max_tokens budget.
+  - model_name: deepseek-v4-flash-lith
     litellm_params:
-      # Replace with a model id from:
-      #   curl https://api.lithosai.cloud/v1/models \
-      #     -H "Authorization: Bearer $LITHOSAI_API_KEY"
-      model: openai/REPLACE_WITH_LITHOS_MODEL_ID
+      model: openai/deepseek-ai/DeepSeek-V4.1-Flash
       api_base: https://api.lithosai.cloud/v1
       api_key: os.environ/LITHOSAI_API_KEY
+
+  # --- Ollama (local) ---
+  # num_ctx is per request and overrides the unit's OLLAMA_CONTEXT_LENGTH.
+  # The 4B gets 80k: Claude Code's system prompt + tool definitions is ~35k
+  # tokens, so a 32k window leaves no room to work. See OLLAMA.md.
+  - model_name: qwen2.5-coder-1.5b
+    litellm_params:
+      model: ollama_chat/qwen2.5-coder:1.5b
+      api_base: http://127.0.0.1:11434
+      num_ctx: 32768
+      drop_params: true
+      # Claude Code always sends Anthropic "thinking"; LiteLLM maps it to
+      # reasoning_effort -> Ollama "think", which this model rejects with 400.
+      # Force it off for Ollama models without thinking support.
+      think: false
+      # No api_key needed for local Ollama
+
+  # 7B coding model - 5.1 GiB at 32k with the q4_0 KV cache. Keep it at 32k;
+  # it does not fit at the 4B's 80k window on 8 GiB.
+  - model_name: qwen2.5-coder-7b
+    litellm_params:
+      model: ollama_chat/qwen2.5-coder:7b-instruct-q4_K_M
+      api_base: http://127.0.0.1:11434
+      num_ctx: 32768
+      drop_params: true
+      think: false
+
+  # Qwen3 4B Instruct (non-thinking) - the usable local pick.
+  # 6.3 GiB at 80k with the q4_0 KV cache, 100% on the GPU.
+  - model_name: qwen3-4b-instruct-2507
+    litellm_params:
+      model: ollama_chat/qwen3:4b-instruct-2507-q4_K_M
+      api_base: http://127.0.0.1:11434
+      num_ctx: 81920
+      drop_params: true
+      think: false
 
 router_settings:
   # Equivalent of the old providers.json "aliases". Targets must be existing
@@ -73,9 +108,16 @@ router_settings:
     nemotron: { model: nvidia/nemotron-3-ultra-550b-a55b:free, hidden: true }
     lightning: { model: nvidia/nemotron-3.5-lightning:free, hidden: true }
     gpt-oss:  { model: openai/gpt-oss-120b, hidden: true }
-    kimi:     { model: lithos-kimi-k3, hidden: true }
+    lith:     { model: deepseek-v4-flash-lith, hidden: true }
+    qwen2.5:     { model: qwen2.5-coder-1.5b, hidden: true }
+    qwen7b:      { model: qwen2.5-coder-7b, hidden: true }
+    qwen4b:      { model: qwen3-4b-instruct-2507, hidden: true }
 
 litellm_settings:
+  # Claude Code talks to /v1/messages. Without this flag LiteLLM routes
+  # openai/ deployments to /v1/responses, which LithosAI does not implement
+  # (404 -> deployment cooldown -> 429 "No deployments available").
+  use_chat_completions_url_for_anthropic_messages: true
   # Claude Code sends Anthropic-specific parameters (thinking, effort, ...).
   # OpenAI-only backends reject them; drop rather than 400.
   drop_params: true

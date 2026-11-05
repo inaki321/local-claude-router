@@ -10,6 +10,14 @@ claude -> 127.0.0.1:4000 (LiteLLM) --+-> DeepSeek    api.deepseek.com/anthropic
                                      +-> LithosAI    api.lithosai.cloud/v1 (translated)
 ```
 
+## local alias to run first ollama and then claude (litellm already starts at boot)
+
+```
+alias ollama-local='OLLAMA_FLASH_ATTENTION=1 OLLAMA_KV_CACHE_TYPE=q4_0 OLLAMA_CONTEXT_LENGTH=81920 
+
+alias claude-local='CLAUDE_CODE_MAX_CONTEXT_TOKENS=81920 ANTHROPIC_MODEL=qwen4b claude'
+```
+
 ## Parts
 
 | Path | Purpose |

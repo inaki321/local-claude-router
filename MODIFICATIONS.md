@@ -7,6 +7,84 @@ This file is the record of every change made to the live system so the setup
 can be audited or rolled back. The repo is the canonical source; the live
 copies are deployed by `install.sh`.
 
+## 2026-11-05: Ollama local models fixed
+
+The live Ollama was a manually started `ollama serve` (PID 9000, started
+16:50) with no `OLLAMA_*` variables in its environment. `ollama ps` showed a
+4096-token context, so Claude Code's ~34,673-token request failed with
+`request (34673 tokens) exceeds the available context size (4096 tokens)`.
+The system-wide unit was already disabled.
+
+Changes:
+
+- Added `systemd/ollama.service` (optional user unit) with
+  `OLLAMA_FLASH_ATTENTION=1`, `OLLAMA_KV_CACHE_TYPE=q4_0` and
+  `OLLAMA_CONTEXT_LENGTH=81920`. It is **disabled** on this machine: Ollama is
+  started manually (below), as before. The unit stays in the repo only for
+  anyone who wants it started at login.
+- `~/.config/litellm/config.yaml.example`: added per-model `num_ctx`
+  (4B: 81920, 7B: 32768, 1.5B: 32768), overriding the global default.
+- `~/.claude/settings.example.json`: added a `qwen3-4b-instruct-2507` row to
+  `modelPicker`.
+- Use `/model qwen3-4b-instruct-2507` (or `qwen4b`), not the
+  `ollama_chat/...` tag: LiteLLM treats the raw tag as a direct provider
+  route, so `think: false` and `drop_params` never apply.
+- Start local-model sessions with `CLAUDE_CODE_MAX_CONTEXT_TOKENS=81920`;
+  otherwise Claude Code assumes 200k and never compacts before Ollama
+  overflows. The live `~/.claude/settings.json` also contains
+  `modelSettings.*.contextWindow`, which is not a supported key and does
+  nothing; it can be removed at will.
+
+### LithosAI
+
+- `model_list`: `deepseek-v4-flash-lith` -> `openai/deepseek-ai/DeepSeek-V4.1-Flash`
+  at `https://api.lithosai.cloud/v1`. Alias: `lith`.
+- `LITHOSAI_API_KEY` added to `~/.config/litellm/env` (0600). The key is not
+  recorded here or in the repo.
+- The model is a reasoning model: it returns `reasoning_content` before the
+  answer, so budget enough `max_tokens`.
+- This replaces the repo example's `REPLACE_WITH_LITHOS_MODEL_ID` placeholder,
+  so `install.sh` no longer refuses to run.
+- Added `deepseek-v4-flash-lith` to the live `~/.claude/settings.json` picker
+  (the default model remains `qwen3-4b-instruct-2507`), and replaced the stale
+  `lithos-kimi-k3` row in the repo example.
+- Fix: `litellm_settings.use_chat_completions_url_for_anthropic_messages: true`.
+  Claude Code uses `/v1/messages`; LiteLLM otherwise sends `openai/`
+  deployments to the Responses API (`/v1/responses`), which LithosAI returns
+  404 for. That cooled the deployment down and surfaced as
+  `429 No deployments available for selected model`.
+
+Measured (RTX 4060 Laptop, 8,188 MiB), qwen3 4B Q4_K_M:
+
+| KV | context | size | placement |
+| --- | --- | --- | --- |
+| q8_0 | 49,152 | 6.8 GiB | 91% GPU |
+| q8_0 | 65,536 | 8.0 GiB | 79% GPU |
+| q4_0 | 65,536 | 5.6 GiB | 100% GPU |
+| q4_0 | 81,920 | 6.3 GiB | 100% GPU |
+| q4_0 | 98,304 | 7.4 GiB | 86% GPU |
+
+Not viable here: Ornith-1.5-35B-A3B and Qwen3.5-35B-A3B (23 GB Ollama tag).
+"3B active" reduces compute, not memory; the weights must be resident. 8 GiB
+VRAM + ~10 GiB WSL RAM does not hold 23 GB. The "runs on 8 GB" reports mean
+8 GB VRAM plus 32-64 GB system RAM. `ornith-1.5:9b` (6.6 GB) is the only
+plausible Ornith and is still tight with Claude Code's ~35k baseline.
+
+Manual start (the live workflow):
+
+```bash
+OLLAMA_FLASH_ATTENTION=1 OLLAMA_KV_CACHE_TYPE=q4_0 OLLAMA_CONTEXT_LENGTH=81920 ollama serve
+```
+
+LiteLLM was updated in place (`num_ctx` added to the three Ollama entries) and
+restarted. `./install.sh --force` was **not** run: the example's Lithos entry
+still contains `REPLACE_WITH_LITHOS_MODEL_ID`, which the installer refuses.
+Restart after editing the live config:
+
+```bash
+systemctl --user restart claude-litellm
+```
+
 ## Status 2026-11-03: LiteLLM applied, router removed
 
 Applied on this machine:

@@ -12,6 +12,17 @@ provider by `model_name`, translating to OpenAI format only where required.
 Shortcuts live in `router_settings.model_group_alias` (`ds`, `kimi`, `gemma`, …).
 Claude Code's picker comes from `modelPicker` in settings, not from this file.
 
+## update env variables for litellm
+```
+# depends on what you want to update, apikey or endpoint
+nano ~/.config/litellm/ <env> or <config.yaml> 
+
+# restart service with changes
+
+systemctl --user restart claude-litellm
+
+```
+
 ## What LiteLLM is
 
 A Python proxy server (FastAPI/uvicorn), not a container and not an LLM. It is
